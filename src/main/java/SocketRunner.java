@@ -7,7 +7,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 
 public class SocketRunner {
-    private static String request = "проекта";
+    private static String request = "бизнес";
 
     public static void main(String[] args) throws IOException {
         InetAddress inetAddress = Inet4Address.getByName("localhost");

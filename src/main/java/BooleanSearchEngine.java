@@ -1,47 +1,50 @@
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class BooleanSearchEngine implements SearchEngine {
-    private final Set<String> stopWords;
-    private final Map<String, Set<IndexedPage>> allIndexedDocuments;
+    private final Map<String, List<PageEntry>> allWords = new HashMap<>();
 
     public BooleanSearchEngine(File pdfsDir) throws IOException {
-        DataProcessor dataPreparationTool = new DataProcessor();
-        stopWords = dataPreparationTool.getStopWords();
-        allIndexedDocuments = dataPreparationTool.pdfDataHandler(pdfsDir);
-    }
-
-    @Override
-    public List<PageEntry> search(String searchString) {
-        // Фильтрую от стоп-слов
-        String[] searchWords = searchString.split("\\P{IsAlphabetic}+");
-        List<String> words = Arrays.stream(searchWords)
-                .filter(word -> !stopWords.contains(word))
-                .collect(Collectors.toList());
-        // Новый лист для результатов
-        List<PageEntry> response = new ArrayList<>();
-        // По названию документа
-        Set<String> documents = allIndexedDocuments.keySet();
-        for (String pdfName : documents) {
-            // Страницы одного документа
-            Set<IndexedPage> pages = allIndexedDocuments.get(pdfName);
-            for (IndexedPage page : pages) {
-                // Счетчик для количества найденных слов на странице
-                int count = 0;
-                for (String word : words) {
-                    if (page.getWordDistribution().containsKey(word)) {
-                        count += page.getWordDistribution().get(word);
+        for (File pdf : Objects.requireNonNull(pdfsDir.listFiles())) {
+            var doc = new PdfDocument(new PdfReader(pdf));
+            int pageNumber = doc.getNumberOfPages();
+            for (int i = 1; i <= pageNumber; i++) {
+                var page = doc.getPage(i);
+                var text = PdfTextExtractor.getTextFromPage(page);
+                var words = text.split("\\P{IsAlphabetic}+");
+                Map<String, Integer> frequency = new HashMap<>();
+                for (var word : words) {
+                    if (word.isEmpty()) {
+                        continue;
                     }
+                    var anyWord = word.toLowerCase();
+                    frequency.put(anyWord, frequency.getOrDefault(anyWord, 0) + 1);
                 }
-                // Если совпадения найдены, то добавляю страницу к результатам.
-                if (count > 0) {
-                    response.add(new PageEntry(pdfName, page.getPage() + 1, count));
+                for (String word : frequency.keySet()) {
+                    PageEntry pageEntry = new PageEntry(pdf.getName(), i, frequency.get(word));
+                    if (allWords.containsKey(word)) {
+                        allWords.get(word).add(pageEntry);
+                    } else {
+                        allWords.put(word, new ArrayList<>());
+                        allWords.get(word).add(pageEntry);
+
+                    }
+
+                    allWords.values().forEach(Collections::sort);
                 }
             }
         }
-        Collections.sort(response);
-        return response;
+    }
+
+    @Override
+    public List<PageEntry> search(String word) {
+        List<PageEntry> result;
+        String anyWord = word.toLowerCase();
+        result = allWords.get(anyWord);
+        return Objects.requireNonNullElse(result, Collections.emptyList());
     }
 }
