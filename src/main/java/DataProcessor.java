@@ -27,22 +27,17 @@ public class DataProcessor {
         Set<IndexedPage> pagesFromDoc;
         Map<String, Integer>  wordDistribution;
 
-        PdfDocument document;
-        PdfPage page;
-        String text;
-        String fileName;
-        String[] words;
 
         for (File file: Objects.requireNonNull(pdfDir.listFiles())) {
-            fileName = file.getName();
+            String fileName = file.getName();
             pagesFromDoc = new HashSet<>();
             indexedData.put(fileName, pagesFromDoc);
-            document = new PdfDocument(new PdfReader(file));
+            PdfDocument document = new PdfDocument(new PdfReader(file));
 
             for (int i = 0; i < document.getNumberOfPages(); i++) {
-                page = document.getPage(i + 1);
-                text = PdfTextExtractor.getTextFromPage(page);
-                words = text.toLowerCase().split("\\P{IsAlphabetic}+");
+                PdfPage page = document.getPage(i + 1);
+                String text = PdfTextExtractor.getTextFromPage(page);
+                String[] words = text.toLowerCase().split("\\P{IsAlphabetic}+");
 
                 wordDistribution = new HashMap<>();
                 for (String word: words) {
